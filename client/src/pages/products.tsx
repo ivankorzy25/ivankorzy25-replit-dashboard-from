@@ -36,7 +36,7 @@ export default function Products() {
       page: currentPage, 
       limit: itemsPerPage, 
       search: searchQuery, 
-      familia: selectedFamily 
+      familia: selectedFamily === "all" ? "" : selectedFamily 
     }),
   });
 
@@ -194,7 +194,7 @@ export default function Products() {
                           <SelectValue placeholder="Todas las familias" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todas las familias</SelectItem>
+                          <SelectItem value="all">Todas las familias</SelectItem>
                           {families?.map((family: string) => (
                             <SelectItem key={family} value={family}>
                               {family}

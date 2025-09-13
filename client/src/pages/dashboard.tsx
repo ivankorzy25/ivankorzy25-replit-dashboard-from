@@ -59,7 +59,7 @@ export default function Dashboard() {
       await productsApi.bulkPriceUpdate({
         percentage,
         field: "precioUsdSinIva",
-        familia: priceUpdateData.familia || undefined,
+        familia: priceUpdateData.familia === "all" ? undefined : priceUpdateData.familia || undefined,
       });
 
       toast({
@@ -202,7 +202,7 @@ export default function Dashboard() {
                           <SelectValue placeholder="Todas las familias" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">Todas las familias</SelectItem>
+                          <SelectItem value="all">Todas las familias</SelectItem>
                           <SelectItem value="Herramientas">Herramientas</SelectItem>
                           <SelectItem value="Soldaduras">Soldaduras</SelectItem>
                           <SelectItem value="Seguridad">Seguridad</SelectItem>

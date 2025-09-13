@@ -195,13 +195,13 @@ export default function Multimedia() {
         !file.productSku?.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    if (selectedFileType && file.type !== selectedFileType) {
+    if (selectedFileType && selectedFileType !== "all" && file.type !== selectedFileType) {
       return false;
     }
-    if (selectedUploadType && file.uploadType !== selectedUploadType) {
+    if (selectedUploadType && selectedUploadType !== "all" && file.uploadType !== selectedUploadType) {
       return false;
     }
-    if (selectedProduct && file.productSku !== selectedProduct) {
+    if (selectedProduct && selectedProduct !== "all" && file.productSku !== selectedProduct) {
       return false;
     }
     return true;
@@ -415,7 +415,7 @@ export default function Multimedia() {
                             <SelectValue placeholder="Todos los productos" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Todos los productos</SelectItem>
+                            <SelectItem value="all">Todos los productos</SelectItem>
                             {productsData?.products?.map((product) => (
                               <SelectItem key={product.id} value={product.sku}>
                                 {product.sku}
@@ -429,7 +429,7 @@ export default function Multimedia() {
                             <SelectValue placeholder="Tipo de archivo" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Todos los tipos</SelectItem>
+                            <SelectItem value="all">Todos los tipos</SelectItem>
                             <SelectItem value="image">Imágenes</SelectItem>
                             <SelectItem value="pdf">PDFs</SelectItem>
                             <SelectItem value="video">Videos</SelectItem>
@@ -441,7 +441,7 @@ export default function Multimedia() {
                             <SelectValue placeholder="Categoría" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">Todas las categorías</SelectItem>
+                            <SelectItem value="all">Todas las categorías</SelectItem>
                             {uploadTypes.map((type) => (
                               <SelectItem key={type.value} value={type.value}>
                                 {type.label}
