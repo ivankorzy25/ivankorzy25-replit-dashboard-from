@@ -290,6 +290,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk import products
+  app.post('/api/products/bulk-import', authenticateToken, requireEditor, async (req, res) => {
+    try {
+      const { products } = req.body;
+      
+      if (!Array.isArray(products)) {
+        return res.status(400).json({ error: 'Products debe ser un array' });
+      }
+
+      if (products.length > 1000) {
+        return res.status(400).json({ error: 'No se pueden importar más de 1000 productos a la vez' });
+      }
+
+      // Validate each product
+      const validProducts: any[] = [];
+      const validationErrors: Array<{ row: number; errors: string[] }> = [];
+
+      products.forEach((product, index) => {
+        try {
+          // Parse and validate product data
+          const parsedProduct = insertProductSchema.parse(product);
+          validProducts.push(parsedProduct);
+        } catch (error: any) {
+          const errors = error.errors?.map((e: any) => `${e.path.join('.')}: ${e.message}`) || [error.message];
+          validationErrors.push({ row: index + 1, errors });
+        }
+      });
+
+      if (validationErrors.length > 0) {
+        return res.status(400).json({
+          error: 'Errores de validación en algunos productos',
+          validationErrors
+        });
+      }
+
+      // Perform upsert
+      const result = await storage.upsertProducts(validProducts);
+      
+      res.json({
+        message: `Importación completada: ${result.created} creados, ${result.updated} actualizados`,
+        ...result
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all product SKUs (for validation)
+  app.get('/api/products/skus', authenticateToken, async (req, res) => {
+    try {
+      const allProducts = await storage.getProducts({ limit: 10000 });
+      const skus = allProducts.products.map(p => p.sku);
+      res.json(skus);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Export products
+  app.get('/api/products/export', authenticateToken, async (req, res) => {
+    try {
+      const familia = req.query.familia as string || '';
+      const stock = req.query.stock as string || '';
+      
+      let filters: any = { limit: 10000 };
+      if (familia) filters.familia = familia;
+      
+      const result = await storage.getProducts(filters);
+      
+      // Filter by stock if specified
+      let products = result.products;
+      if (stock) {
+        products = products.filter(p => p.stock === stock);
+      }
+      
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // File upload
   app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
     try {

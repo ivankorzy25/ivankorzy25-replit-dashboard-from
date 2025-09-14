@@ -10,12 +10,14 @@ import {
   Box,
   BarChart3,
   Users,
-  Bell
+  Bell,
+  FileSpreadsheet
 } from "lucide-react";
 
 const baseNavigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home, requiresAdmin: false },
   { name: "Productos", href: "/products", icon: Package, requiresAdmin: false },
+  { name: "Importar/Exportar", href: "/import-export", icon: FileSpreadsheet, requiresAdmin: false },
   { name: "Multimedia", href: "/multimedia", icon: Images, requiresAdmin: false },
   { name: "Reportes", href: "/reports", icon: BarChart3, requiresAdmin: false },
 ];

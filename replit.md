@@ -79,6 +79,16 @@ Idioma preferido: Español.
 - **Visual indicators** in product table and dashboard for low stock items
 - **Complete notification history** with filtering and search
 
+## Bulk Import/Export System
+- **Excel (.xlsx) and CSV support** for mass product management
+- **Export functionality** with column selection and filters
+- **Import with validation** including duplicate SKU detection
+- **Batch processing** for large datasets (200 products per batch)
+- **Preview mode** with error detection before import
+- **Downloadable templates** with examples and instructions
+- **Import modes** supporting create-only or update-existing
+- **Detailed import reports** showing successes and failures
+
 ## API Structure
 - `/api/auth/*` - Authentication endpoints (login, logout, user verification)
 - `/api/products/*` - Product CRUD operations with filtering and pagination

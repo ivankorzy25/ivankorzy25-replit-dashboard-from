@@ -27,6 +27,11 @@ interface IStorage {
   
   // Bulk operations
   updatePricesBulk(percentage: number, field: string, familia?: string): Promise<number>;
+  upsertProducts(products: InsertProduct[]): Promise<{
+    created: number;
+    updated: number;
+    errors: Array<{ sku: string; error: string }>;
+  }>;
   
   // File uploads
   createFileUpload(upload: InsertFileUpload): Promise<FileUpload>;
@@ -713,6 +718,40 @@ export class PostgreSQLStorage implements IStorage {
       SET low_stock_notified_at = NOW() 
       WHERE id = ${productId}
     `;
+  }
+
+  async upsertProducts(products: InsertProduct[]): Promise<{
+    created: number;
+    updated: number;
+    errors: Array<{ sku: string; error: string }>;
+  }> {
+    let created = 0;
+    let updated = 0;
+    const errors: Array<{ sku: string; error: string }> = [];
+
+    for (const product of products) {
+      try {
+        // Check if product with SKU exists
+        const existing = await this.getProductBySku(product.sku);
+        
+        if (existing) {
+          // Update existing product
+          await this.updateProduct(existing.id, product);
+          updated++;
+        } else {
+          // Create new product
+          await this.createProduct(product);
+          created++;
+        }
+      } catch (error: any) {
+        errors.push({
+          sku: product.sku,
+          error: error.message || 'Error desconocido'
+        });
+      }
+    }
+
+    return { created, updated, errors };
   }
 }
 

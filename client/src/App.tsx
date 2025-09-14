@@ -11,6 +11,7 @@ import Multimedia from "@/pages/multimedia";
 import Reports from "@/pages/reports";
 import Users from "@/pages/users";
 import Alerts from "@/pages/alerts";
+import ImportExport from "@/pages/import-export";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -36,6 +37,7 @@ function Router() {
       <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route path="/users" component={() => <ProtectedRoute component={Users} />} />
       <Route path="/alerts" component={() => <ProtectedRoute component={Alerts} />} />
+      <Route path="/import-export" component={() => <ProtectedRoute component={ImportExport} />} />
       <Route component={NotFound} />
     </Switch>
   );
