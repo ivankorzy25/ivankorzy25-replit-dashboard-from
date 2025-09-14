@@ -241,6 +241,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get product by barcode
+  app.get('/api/products/barcode/:code', authenticateToken, async (req, res) => {
+    try {
+      const product = await storage.getProductByBarcode(req.params.code);
+      if (!product) {
+        return res.status(404).json({ error: 'Producto no encontrado con ese código de barras' });
+      }
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Adjust product stock by delta
+  app.post('/api/products/:id/stock-adjust', authenticateToken, requireEditor, async (req, res) => {
+    try {
+      const { delta } = req.body;
+      if (typeof delta !== 'number') {
+        return res.status(400).json({ error: 'Delta debe ser un número' });
+      }
+      
+      const product = await storage.updateStockByDelta(req.params.id, delta);
+      if (!product) {
+        return res.status(404).json({ error: 'Producto no encontrado' });
+      }
+      
+      res.json(product);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post('/api/products', authenticateToken, requireEditor, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);

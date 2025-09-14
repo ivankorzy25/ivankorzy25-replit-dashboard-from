@@ -27,6 +27,7 @@ export const users = pgTable("users", {
 export const products = pgTable("products", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sku: text("sku").notNull().unique(),
+  barcode: text("barcode"), // Código de barras (EAN-13, Code 128, QR)
   modelo: text("modelo"),
   marca: text("marca"),
   familia: text("familia"),

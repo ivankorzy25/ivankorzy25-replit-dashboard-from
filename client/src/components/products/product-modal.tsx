@@ -32,6 +32,7 @@ import { Product } from "@shared/schema";
 
 const productSchema = z.object({
   sku: z.string().min(1, "SKU is required"),
+  barcode: z.string().optional(),
   modelo: z.string().optional(),
   marca: z.string().optional(),
   familia: z.string().optional(),
@@ -72,6 +73,7 @@ export default function ProductModal({
     resolver: zodResolver(productSchema),
     defaultValues: {
       sku: "",
+      barcode: "",
       modelo: "",
       marca: "",
       familia: "",
@@ -94,6 +96,7 @@ export default function ProductModal({
     if (product) {
       form.reset({
         sku: product.sku || "",
+        barcode: product.barcode || "",
         modelo: product.modelo || "",
         marca: product.marca || "",
         familia: product.familia || "",
@@ -146,6 +149,20 @@ export default function ProductModal({
                     <FormLabel>SKU *</FormLabel>
                     <FormControl>
                       <Input {...field} disabled={isEdit} data-testid="input-sku" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="barcode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Código de Barras</FormLabel>
+                    <FormControl>
+                      <Input {...field} data-testid="input-barcode" placeholder="EAN-13, Code 128, QR" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

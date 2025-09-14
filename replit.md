@@ -89,6 +89,16 @@ Idioma preferido: Español.
 - **Import modes** supporting create-only or update-existing
 - **Detailed import reports** showing successes and failures
 
+## Barcode Scanning System
+- **Camera-based scanning** using @zxing/browser library
+- **Multiple barcode formats** supported (EAN-13, Code 128, QR codes)
+- **Three capture methods**: live camera, manual entry, image upload
+- **Quick stock adjustment** controls (+1, -1, set quantity)
+- **Smart product lookup** by barcode with create-new fallback
+- **Mobile-optimized interface** with responsive design
+- **Role-based access** restricted to admin and editor users
+- **Integration with import/export** system for barcode field
+
 ## API Structure
 - `/api/auth/*` - Authentication endpoints (login, logout, user verification)
 - `/api/products/*` - Product CRUD operations with filtering and pagination

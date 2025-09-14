@@ -20,9 +20,11 @@ interface IStorage {
   }): Promise<{ products: Product[]; total: number }>;
   getProduct(id: string): Promise<Product | undefined>;
   getProductBySku(sku: string): Promise<Product | undefined>;
+  getProductByBarcode(barcode: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
   updateProductUrlField(id: string, fieldKey: string, url: string): Promise<Product | undefined>;
+  updateStockByDelta(id: string, delta: number): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
   
   // Bulk operations
@@ -98,6 +100,7 @@ export class PostgreSQLStorage implements IStorage {
     return {
       id: dbProduct.id,
       sku: dbProduct.sku,
+      barcode: dbProduct.barcode,
       modelo: dbProduct.modelo,
       marca: dbProduct.marca,
       familia: dbProduct.familia,
@@ -223,21 +226,26 @@ export class PostgreSQLStorage implements IStorage {
     return result[0] ? this.mapProductFields(result[0]) : undefined;
   }
 
+  async getProductByBarcode(barcode: string): Promise<Product | undefined> {
+    const result = await sql`SELECT * FROM products WHERE barcode = ${barcode}`;
+    return result[0] ? this.mapProductFields(result[0]) : undefined;
+  }
+
   async createProduct(product: InsertProduct): Promise<Product> {
     const result = await sql`
       INSERT INTO products (
-        sku, modelo, marca, familia, precio_usd_sin_iva, iva_percent, precio_compra,
-        descripcion, caracteristicas, potencia, motor, cabina, tta_incluido, stock,
+        sku, barcode, modelo, marca, familia, precio_usd_sin_iva, iva_percent, precio_compra,
+        descripcion, caracteristicas, potencia, motor, cabina, tta_incluido, stock, stock_cantidad,
         combustible, url_pdf, instagram_feed_url_1, instagram_feed_url_2, instagram_feed_url_3,
         instagram_story_url_1, mercado_libre_url_1, web_generica_url_1, url_ficha_html
       ) VALUES (
-        ${product.sku}, ${product.modelo || null}, ${product.marca || null}, 
+        ${product.sku}, ${(product as any).barcode || null}, ${product.modelo || null}, ${product.marca || null}, 
         ${product.familia || null}, ${product.precioUsdSinIva || null}, 
         ${product.ivaPercent || null}, ${product.precioCompra || null},
         ${product.descripcion || null}, ${product.caracteristicas || null}, 
         ${product.potencia || null}, ${product.motor || null}, 
         ${product.cabina || null}, ${product.ttaIncluido || false}, 
-        ${product.stock || null}, ${product.combustible || null},
+        ${product.stock || null}, ${(product as any).stockCantidad || 0}, ${product.combustible || null},
         ${product.urlPdf || null}, ${product.instagramFeedUrl1 || null}, 
         ${product.instagramFeedUrl2 || null}, ${product.instagramFeedUrl3 || null},
         ${product.instagramStoryUrl1 || null}, ${product.mercadoLibreUrl1 || null}, 
@@ -263,6 +271,7 @@ export class PostgreSQLStorage implements IStorage {
     const mergedUpdates: any = {};
     
     if (product.sku !== undefined) mergedUpdates.sku = product.sku;
+    if ((product as any).barcode !== undefined) mergedUpdates.barcode = (product as any).barcode;
     if (product.modelo !== undefined) mergedUpdates.modelo = product.modelo;
     if (product.marca !== undefined) mergedUpdates.marca = product.marca;
     if (product.familia !== undefined) mergedUpdates.familia = product.familia;
@@ -276,6 +285,7 @@ export class PostgreSQLStorage implements IStorage {
     if (product.cabina !== undefined) mergedUpdates.cabina = product.cabina;
     if (product.ttaIncluido !== undefined) mergedUpdates.tta_incluido = product.ttaIncluido;
     if (product.stock !== undefined) mergedUpdates.stock = product.stock;
+    if ((product as any).stockCantidad !== undefined) mergedUpdates.stock_cantidad = (product as any).stockCantidad;
     if (product.combustible !== undefined) mergedUpdates.combustible = product.combustible;
     if (product.urlPdf !== undefined) mergedUpdates.url_pdf = product.urlPdf;
     if (product.instagramFeedUrl1 !== undefined) mergedUpdates.instagram_feed_url_1 = product.instagramFeedUrl1;
@@ -289,6 +299,7 @@ export class PostgreSQLStorage implements IStorage {
     // Build final values with fallbacks to current values
     const finalValues = {
       sku: mergedUpdates.sku ?? currentProduct.sku,
+      barcode: mergedUpdates.barcode ?? currentProduct.barcode,
       modelo: mergedUpdates.modelo ?? currentProduct.modelo,
       marca: mergedUpdates.marca ?? currentProduct.marca,
       familia: mergedUpdates.familia ?? currentProduct.familia,
@@ -302,6 +313,7 @@ export class PostgreSQLStorage implements IStorage {
       cabina: mergedUpdates.cabina ?? currentProduct.cabina,
       tta_incluido: mergedUpdates.tta_incluido ?? currentProduct.tta_incluido,
       stock: mergedUpdates.stock ?? currentProduct.stock,
+      stock_cantidad: mergedUpdates.stock_cantidad ?? currentProduct.stock_cantidad,
       combustible: mergedUpdates.combustible ?? currentProduct.combustible,
       url_pdf: mergedUpdates.url_pdf ?? currentProduct.url_pdf,
       instagram_feed_url_1: mergedUpdates.instagram_feed_url_1 ?? currentProduct.instagram_feed_url_1,
@@ -317,6 +329,7 @@ export class PostgreSQLStorage implements IStorage {
     const result = await sql`
       UPDATE products SET 
         sku = ${finalValues.sku},
+        barcode = ${finalValues.barcode},
         modelo = ${finalValues.modelo},
         marca = ${finalValues.marca},
         familia = ${finalValues.familia},
@@ -330,6 +343,7 @@ export class PostgreSQLStorage implements IStorage {
         cabina = ${finalValues.cabina},
         tta_incluido = ${finalValues.tta_incluido},
         stock = ${finalValues.stock},
+        stock_cantidad = ${finalValues.stock_cantidad},
         combustible = ${finalValues.combustible},
         url_pdf = ${finalValues.url_pdf},
         instagram_feed_url_1 = ${finalValues.instagram_feed_url_1},
@@ -384,6 +398,22 @@ export class PostgreSQLStorage implements IStorage {
     }
     
     return this.getProduct(id);
+  }
+
+  async updateStockByDelta(id: string, delta: number): Promise<Product | undefined> {
+    const result = await sql`
+      UPDATE products 
+      SET 
+        stock_cantidad = GREATEST(0, stock_cantidad + ${delta}),
+        stock = CASE 
+          WHEN stock_cantidad + ${delta} > 0 THEN 'Disponible'
+          ELSE 'Sin Stock'
+        END,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return result[0] ? this.mapProductFields(result[0]) : undefined;
   }
 
   async updatePricesBulk(percentage: number, field: string, familia?: string): Promise<number> {

@@ -5,6 +5,7 @@ import Topbar from "@/components/layout/topbar";
 import ProductTable from "@/components/products/product-table";
 import ProductModal from "@/components/products/product-modal";
 import MultimediaModal from "@/components/products/multimedia-modal";
+import BarcodeScanner from "@/components/products/barcode-scanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,7 @@ import { productsApi, statsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { useAuthStore, isEditor } from "@/lib/auth";
 import { Product } from "@shared/schema";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ScanLine } from "lucide-react";
 
 export default function Products() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,6 +25,8 @@ export default function Products() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isMultimediaModalOpen, setIsMultimediaModalOpen] = useState(false);
   const [selectedProductForMultimedia, setSelectedProductForMultimedia] = useState<Product | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [newBarcodeForProduct, setNewBarcodeForProduct] = useState<string | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -153,16 +156,51 @@ export default function Products() {
   };
 
   const handleSaveProduct = (data: any) => {
+    // Si tenemos un código de barras nuevo, agregarlo a los datos
+    if (newBarcodeForProduct && !editingProduct) {
+      data.barcode = newBarcodeForProduct;
+    }
+    
     if (editingProduct) {
       updateProductMutation.mutate({ id: editingProduct.id, data });
     } else {
       createProductMutation.mutate(data);
     }
+    
+    // Limpiar el código de barras temporal
+    setNewBarcodeForProduct(null);
   };
 
   const handleManageMultimedia = (product: Product) => {
     setSelectedProductForMultimedia(product);
     setIsMultimediaModalOpen(true);
+  };
+
+  const handleProductFound = (product: Product) => {
+    // Producto encontrado, el componente del escáner maneja la visualización
+    queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+  };
+
+  const handleProductNotFound = (barcode: string) => {
+    // Producto no encontrado, ofrecer crear nuevo
+    setNewBarcodeForProduct(barcode);
+    setEditingProduct(null);
+    setIsScannerOpen(false);
+    setIsModalOpen(true);
+    toast({
+      title: "Producto no encontrado",
+      description: "Puedes crear un nuevo producto con este código de barras",
+    });
+  };
+
+  const handleStockUpdate = (product: Product, delta: number) => {
+    // Actualización de stock realizada
+    queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    toast({
+      title: "Stock actualizado",
+      description: `Stock de ${product.sku} ajustado en ${delta > 0 ? "+" : ""}${delta} unidades`,
+    });
   };
 
   return (
@@ -185,12 +223,25 @@ export default function Products() {
                     Administra el catálogo completo de productos KOR
                   </p>
                 </div>
-                {canEdit && (
-                  <Button onClick={handleNewProduct} data-testid="button-new-product">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Nuevo Producto
-                  </Button>
-                )}
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <>
+                      <Button
+                        onClick={() => setIsScannerOpen(true)}
+                        variant="outline"
+                        data-testid="button-scanner"
+                        className="flex items-center gap-2"
+                      >
+                        <ScanLine className="h-4 w-4" />
+                        <span className="hidden sm:inline">Escanear</span>
+                      </Button>
+                      <Button onClick={handleNewProduct} data-testid="button-new-product">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Nuevo Producto
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {/* Filters */}
@@ -289,6 +340,17 @@ export default function Products() {
         }}
         product={selectedProductForMultimedia}
       />
+
+      {/* Barcode Scanner */}
+      {canEdit && (
+        <BarcodeScanner
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+          onProductFound={handleProductFound}
+          onProductNotFound={handleProductNotFound}
+          onStockUpdate={handleStockUpdate}
+        />
+      )}
     </div>
   );
 }
