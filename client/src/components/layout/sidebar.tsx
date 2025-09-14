@@ -9,7 +9,8 @@ import {
   Settings,
   Box,
   BarChart3,
-  Users
+  Users,
+  Bell
 } from "lucide-react";
 
 const baseNavigation = [
@@ -21,6 +22,7 @@ const baseNavigation = [
 
 const adminNavigation = [
   { name: "Usuarios", href: "/users", icon: Users, requiresAdmin: true },
+  { name: "Alertas", href: "/alerts", icon: Bell, requiresAdmin: true },
 ];
 
 interface SidebarProps {

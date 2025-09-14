@@ -37,6 +37,9 @@ export const products = pgTable("products", {
   precioCompra: decimal("precio_compra", { precision: 10, scale: 2 }),
   ivaPercent: decimal("iva_percent", { precision: 5, scale: 2 }).default("21"),
   stock: text("stock").default("Sin Stock"), // Disponible, Sin Stock, Consultar
+  stockCantidad: integer("stock_cantidad").default(0), // Cantidad numérica de stock
+  lowStockThreshold: integer("low_stock_threshold"), // Umbral personalizado por producto
+  lowStockNotifiedAt: timestamp("low_stock_notified_at"), // Para evitar notificaciones duplicadas
   combustible: text("combustible"), // Nafta, Diesel, Gas, Nafta/Gas
   potencia: text("potencia"),
   motor: text("motor"),
@@ -78,6 +81,33 @@ export const fileUploads = pgTable("file_uploads", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Alert configuration table (singleton)
+export const alertConfig = pgTable("alert_config", {
+  id: integer("id").primaryKey().default(1), // Siempre será 1 (singleton)
+  defaultThreshold: integer("default_threshold").default(10), // Umbral global de stock bajo
+  summaryFrequency: text("summary_frequency").default("daily"), // 'daily' o 'weekly'
+  recipients: text("recipients").array(), // Array de emails destinatarios
+  lastDailyDigestAt: timestamp("last_daily_digest_at"),
+  lastWeeklyDigestAt: timestamp("last_weekly_digest_at"),
+  isEnabled: boolean("is_enabled").default(true),
+  fromEmail: text("from_email").default("alertas@kor-sistema.com"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Alert notifications history
+export const alertNotifications = pgTable("alert_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").references(() => products.id),
+  type: text("type").notNull(), // 'low_stock', 'digest'
+  recipients: text("recipients").array(), // Array de emails
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  sentAt: timestamp("sent_at").defaultNow(),
+  status: text("status").notNull().default("pending"), // 'pending', 'sent', 'error'
+  error: text("error"),
+});
+
 // Schema validation
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -93,6 +123,17 @@ export const insertProductSchema = createInsertSchema(products).omit({
 export const insertFileUploadSchema = createInsertSchema(fileUploads).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertAlertConfigSchema = createInsertSchema(alertConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertAlertNotificationSchema = createInsertSchema(alertNotifications).omit({
+  id: true,
+  sentAt: true,
 });
 
 export const loginSchema = z.object({
@@ -117,6 +158,19 @@ export const createUserSchema = z.object({
   role: z.enum(['admin', 'editor', 'viewer']).default('viewer'),
 });
 
+export const updateAlertConfigSchema = z.object({
+  defaultThreshold: z.number().min(1).optional(),
+  summaryFrequency: z.enum(['daily', 'weekly']).optional(),
+  recipients: z.array(z.string().email()).optional(),
+  isEnabled: z.boolean().optional(),
+  fromEmail: z.string().email().optional(),
+});
+
+export const testAlertSchema = z.object({
+  type: z.enum(['low_stock', 'digest']),
+  email: z.string().email(),
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -128,3 +182,9 @@ export type LoginRequest = z.infer<typeof loginSchema>;
 export type BulkPriceUpdate = z.infer<typeof bulkPriceUpdateSchema>;
 export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
 export type CreateUser = z.infer<typeof createUserSchema>;
+export type InsertAlertConfig = z.infer<typeof insertAlertConfigSchema>;
+export type AlertConfig = typeof alertConfig.$inferSelect;
+export type InsertAlertNotification = z.infer<typeof insertAlertNotificationSchema>;
+export type AlertNotification = typeof alertNotifications.$inferSelect;
+export type UpdateAlertConfig = z.infer<typeof updateAlertConfigSchema>;
+export type TestAlert = z.infer<typeof testAlertSchema>;

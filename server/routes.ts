@@ -4,12 +4,14 @@ import { storage } from "./storage";
 import { authenticateToken, generateToken, requireAdmin, requireEditor } from "./middleware/auth";
 import { initializeDatabase, testConnection } from "./config/database";
 import { uploadFile } from "./config/storage";
-import { loginSchema, insertProductSchema, bulkPriceUpdateSchema, updateUserRoleSchema, createUserSchema } from "@shared/schema";
+import { loginSchema, insertProductSchema, bulkPriceUpdateSchema, updateUserRoleSchema, createUserSchema, updateAlertConfigSchema, testAlertSchema } from "@shared/schema";
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import express from 'express';
 import { join } from 'path';
+import { alertEngine, manualStockCheck, manualDigest } from './services/alerts';
+import { sendTestEmail } from './services/email';
 
 // Configure multer for file uploads
 const upload = multer({
@@ -31,6 +33,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database
   await testConnection();
   await initializeDatabase();
+  
+  // Initialize alert engine
+  await alertEngine.initialize();
+  console.log('✅ Motor de alertas inicializado');
 
   // Serve uploaded files statically in development mode
   if (process.env.NODE_ENV === 'development' || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
@@ -354,6 +360,101 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const families = await storage.getFamilias();
       res.json(families);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Alert configuration routes (admin only)
+  app.get('/api/alerts/config', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const config = await storage.getAlertConfig();
+      res.json(config);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put('/api/alerts/config', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const updateData = updateAlertConfigSchema.parse(req.body);
+      
+      const updatedConfig = await storage.updateAlertConfig(updateData);
+      
+      // Reconfigure alert engine with new settings
+      await alertEngine.reconfigure();
+      
+      res.json(updatedConfig);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get alert notifications history
+  app.get('/api/alerts/notifications', authenticateToken, async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 50;
+      const notifications = await storage.getAlertNotifications(limit);
+      res.json(notifications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get low stock products
+  app.get('/api/products/low-stock', authenticateToken, async (req, res) => {
+    try {
+      const threshold = parseInt(req.query.threshold as string) || undefined;
+      const products = await storage.getLowStockProducts(threshold);
+      res.json(products);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send test alert email
+  app.post('/api/alerts/test', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { type, email } = testAlertSchema.parse(req.body);
+      
+      const config = await storage.getAlertConfig();
+      if (!config) {
+        return res.status(500).json({ error: 'Configuración de alertas no encontrada' });
+      }
+      
+      const success = await sendTestEmail(email, type, config.fromEmail);
+      
+      if (success) {
+        res.json({ message: 'Email de prueba enviado exitosamente' });
+      } else {
+        res.status(500).json({ error: 'Error al enviar email de prueba' });
+      }
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Manual trigger for stock check (admin only)
+  app.post('/api/alerts/check-stock', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const force = req.body.force === true;
+      await manualStockCheck(force);
+      res.json({ message: 'Verificación de stock ejecutada' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Manual trigger for digest (admin only)
+  app.post('/api/alerts/send-digest', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const { frequency } = req.body;
+      if (!frequency || !['daily', 'weekly'].includes(frequency)) {
+        return res.status(400).json({ error: 'Frecuencia inválida. Debe ser "daily" o "weekly"' });
+      }
+      
+      await manualDigest(frequency);
+      res.json({ message: `Resumen ${frequency === 'daily' ? 'diario' : 'semanal'} enviado` });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

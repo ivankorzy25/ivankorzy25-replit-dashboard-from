@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Product } from "@shared/schema";
 import { isEditor } from "@/lib/auth";
-import { Edit, Images, Trash2, FileText, Video, Image as ImageIcon } from "lucide-react";
+import { Edit, Images, Trash2, FileText, Video, Image as ImageIcon, AlertTriangle } from "lucide-react";
 
 interface ProductTableProps {
   products: Product[];
@@ -97,7 +97,7 @@ export default function ProductTable({
                 <TableHead>SKU / Producto</TableHead>
                 <TableHead>Familia</TableHead>
                 <TableHead>Precio USD</TableHead>
-                <TableHead>Stock</TableHead>
+                <TableHead>Stock / Cantidad</TableHead>
                 <TableHead>Multimedia</TableHead>
                 <TableHead className="w-[100px]">Acciones</TableHead>
               </TableRow>
@@ -124,12 +124,34 @@ export default function ProductTable({
                     ${product.precioUsdSinIva || "0.00"}
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      variant={getStockBadgeVariant(product.stock || "Sin Stock")}
-                      data-testid={`badge-stock-${product.sku}`}
-                    >
-                      {product.stock || "Sin Stock"}
-                    </Badge>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Badge 
+                          variant={getStockBadgeVariant(product.stock || "Sin Stock")}
+                          data-testid={`badge-stock-${product.sku}`}
+                        >
+                          {product.stock || "Sin Stock"}
+                        </Badge>
+                        {/* Indicador de stock bajo */}
+                        {(product.stockCantidad !== undefined && product.stockCantidad !== null && product.stockCantidad < (product.lowStockThreshold || 10)) && (
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            <span className="text-xs text-orange-500 font-medium">Stock Bajo</span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Mostrar cantidad de stock si está disponible */}
+                      {product.stockCantidad !== undefined && (
+                        <div className="text-xs text-muted-foreground">
+                          Cantidad: <span className={`font-medium ${(product.stockCantidad ?? 0) < (product.lowStockThreshold || 10) ? 'text-orange-500' : ''}`}>
+                            {product.stockCantidad}
+                          </span>
+                          {product.lowStockThreshold && (
+                            <span> (Umbral: {product.lowStockThreshold})</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {renderMultimediaStatus(product)}

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { statsApi, productsApi } from "@/lib/api";
+import { statsApi, productsApi, alertsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Box, 
@@ -20,7 +20,9 @@ import {
   Plus,
   Calculator,
   Upload,
-  CloudUpload
+  CloudUpload,
+  AlertTriangle,
+  Bell
 } from "lucide-react";
 
 export default function Dashboard() {
@@ -42,6 +44,18 @@ export default function Dashboard() {
   const { data: productsData, isLoading: productsLoading } = useQuery({
     queryKey: ["/api/products", { page: 1, limit: 10 }],
     queryFn: () => productsApi.getProducts({ page: 1, limit: 10 }),
+  });
+
+  // Fetch low stock products
+  const { data: lowStockProducts, isLoading: lowStockLoading } = useQuery({
+    queryKey: ["/api/products/low-stock"],
+    queryFn: () => alertsApi.getLowStockProducts(),
+  });
+
+  // Fetch alert config
+  const { data: alertConfig } = useQuery({
+    queryKey: ["/api/alerts/config"],
+    queryFn: alertsApi.getConfig,
   });
 
   const handleBulkPriceUpdate = async () => {
@@ -181,6 +195,62 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Low Stock Alert Widget */}
+              {lowStockProducts && lowStockProducts.length > 0 && (
+                <div className="mt-8">
+                  <Card className="shadow-sm border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-orange-500" />
+                          <CardTitle className="text-orange-900 dark:text-orange-100">
+                            Alertas de Stock Bajo
+                          </CardTitle>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-orange-600" data-testid="low-stock-count">
+                            {lowStockProducts.length}
+                          </span>
+                          <span className="text-sm text-muted-foreground">productos</span>
+                        </div>
+                      </div>
+                      <CardDescription>
+                        Productos que requieren atención inmediata por stock bajo
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {lowStockProducts.slice(0, 5).map((product: any) => (
+                          <div key={product.id} className="flex items-center justify-between p-3 bg-white dark:bg-gray-800 rounded-lg border border-orange-200">
+                            <div>
+                              <p className="font-medium" data-testid={`alert-product-${product.sku}`}>
+                                {product.sku} - {product.modelo || "Sin modelo"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {product.descripcion || "Sin descripción"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xl font-bold text-orange-600">
+                                {product.stockCantidad || 0}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Umbral: {product.lowStockThreshold || alertConfig?.defaultThreshold || 10}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {lowStockProducts.length > 5 && (
+                        <p className="text-sm text-center text-muted-foreground mt-2">
+                          ... y {lowStockProducts.length - 5} productos más
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
               {/* Quick Actions Section */}
               <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -60,12 +60,33 @@ Idioma preferido: Español.
 - **Interactive date range picker** with Spanish localization
 - **Real-time filtering** by product families
 
+## User Role Management System
+- **Three-tier permission model**: Admin, Editor, Viewer
+- **Admin capabilities**: Full access including user management and system configuration
+- **Editor capabilities**: Create, edit, delete products; view reports
+- **Viewer capabilities**: Read-only access to products and reports
+- **User management page**: Create users, change roles, activate/deactivate accounts
+- **Security enforcement**: Role validation in both frontend and backend
+- **Account status control**: Deactivated users cannot access the system
+
+## Automated Inventory Alert System
+- **Automatic low stock detection** with configurable thresholds per product
+- **Email notifications** using SendGrid integration
+- **Daily and weekly digest emails** with inventory summaries
+- **Deduplication logic** to prevent alert spam (24-hour window)
+- **Manual trigger options** for immediate stock checks
+- **Alert configuration page** for administrators only
+- **Visual indicators** in product table and dashboard for low stock items
+- **Complete notification history** with filtering and search
+
 ## API Structure
 - `/api/auth/*` - Authentication endpoints (login, logout, user verification)
 - `/api/products/*` - Product CRUD operations with filtering and pagination
 - `/api/stats/*` - Dashboard statistics and analytics endpoints
 - `/api/upload/*` - File upload and multimedia management endpoints
 - `/api/reports/*` - Advanced reporting and analytics endpoints (inventory summary, price trends, family distribution)
+- `/api/users/*` - User management endpoints (list, create, update role, activate/deactivate)
+- `/api/alerts/*` - Alert configuration and notification endpoints (config, notifications, test, manual triggers)
 
 # External Dependencies
 

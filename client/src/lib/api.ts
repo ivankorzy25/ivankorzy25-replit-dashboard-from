@@ -116,3 +116,53 @@ export const statsApi = {
     return response.json();
   },
 };
+
+// Alerts API
+export const alertsApi = {
+  getConfig: async () => {
+    const response = await fetch('/api/alerts/config', {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch alert config');
+    return response.json();
+  },
+  
+  updateConfig: async (config: any) => {
+    const response = await apiRequest('PUT', '/api/alerts/config', config);
+    return response.json();
+  },
+  
+  getNotifications: async (limit: number = 50) => {
+    const response = await fetch(`/api/alerts/notifications?limit=${limit}`, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch notifications');
+    return response.json();
+  },
+  
+  getLowStockProducts: async (threshold?: number) => {
+    const url = threshold 
+      ? `/api/products/low-stock?threshold=${threshold}`
+      : '/api/products/low-stock';
+    const response = await fetch(url, {
+      headers: getAuthHeaders(),
+    });
+    if (!response.ok) throw new Error('Failed to fetch low stock products');
+    return response.json();
+  },
+  
+  sendTestEmail: async (type: 'low_stock' | 'digest', email: string) => {
+    const response = await apiRequest('POST', '/api/alerts/test', { type, email });
+    return response.json();
+  },
+  
+  checkStock: async (force: boolean = false) => {
+    const response = await apiRequest('POST', '/api/alerts/check-stock', { force });
+    return response.json();
+  },
+  
+  sendDigest: async (frequency: 'daily' | 'weekly') => {
+    const response = await apiRequest('POST', '/api/alerts/send-digest', { frequency });
+    return response.json();
+  },
+};

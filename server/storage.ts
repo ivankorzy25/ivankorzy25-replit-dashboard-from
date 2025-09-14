@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Product, type InsertProduct, type FileUpload, type InsertFileUpload } from "@shared/schema";
+import { type User, type InsertUser, type Product, type InsertProduct, type FileUpload, type InsertFileUpload, type AlertConfig, type InsertAlertConfig, type AlertNotification, type InsertAlertNotification } from "@shared/schema";
 import { sql } from './config/database';
 
 interface IStorage {
@@ -64,6 +64,14 @@ interface IStorage {
     inStock: number;
     outOfStock: number;
   }>>;
+  
+  // Alert management
+  getAlertConfig(): Promise<AlertConfig | undefined>;
+  updateAlertConfig(config: Partial<AlertConfig>): Promise<AlertConfig | undefined>;
+  createAlertNotification(notification: InsertAlertNotification): Promise<AlertNotification>;
+  getAlertNotifications(limit?: number): Promise<AlertNotification[]>;
+  getLowStockProducts(threshold?: number): Promise<Product[]>;
+  updateProductNotificationTime(productId: string): Promise<void>;
 }
 
 export class PostgreSQLStorage implements IStorage {
@@ -95,6 +103,9 @@ export class PostgreSQLStorage implements IStorage {
       precioCompra: dbProduct.precio_compra,
       ivaPercent: dbProduct.iva_percent,
       stock: dbProduct.stock,
+      stockCantidad: dbProduct.stock_cantidad,
+      lowStockThreshold: dbProduct.low_stock_threshold,
+      lowStockNotifiedAt: dbProduct.low_stock_notified_at,
       combustible: dbProduct.combustible,
       potencia: dbProduct.potencia,
       motor: dbProduct.motor,
@@ -572,6 +583,136 @@ export class PostgreSQLStorage implements IStorage {
       inStock: parseInt(row.in_stock),
       outOfStock: parseInt(row.out_of_stock)
     }));
+  }
+
+  // Alert configuration methods
+  async getAlertConfig(): Promise<AlertConfig | undefined> {
+    const result = await sql`SELECT * FROM alert_config WHERE id = 1`;
+    if (!result[0]) {
+      // Create default config if not exists
+      const defaultConfig = await sql`
+        INSERT INTO alert_config (id, default_threshold, summary_frequency, is_enabled) 
+        VALUES (1, 10, 'daily', true)
+        ON CONFLICT (id) DO NOTHING
+        RETURNING *
+      `;
+      return defaultConfig[0] as AlertConfig;
+    }
+    return result[0] as AlertConfig;
+  }
+
+  async updateAlertConfig(config: Partial<AlertConfig>): Promise<AlertConfig | undefined> {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramCount = 1;
+
+    // Build dynamic update query
+    if (config.defaultThreshold !== undefined) {
+      updates.push(`default_threshold = $${paramCount}`);
+      values.push(config.defaultThreshold);
+      paramCount++;
+    }
+    
+    if (config.summaryFrequency !== undefined) {
+      updates.push(`summary_frequency = $${paramCount}`);
+      values.push(config.summaryFrequency);
+      paramCount++;
+    }
+    
+    if (config.recipients !== undefined) {
+      updates.push(`recipients = $${paramCount}`);
+      values.push(config.recipients);
+      paramCount++;
+    }
+    
+    if (config.isEnabled !== undefined) {
+      updates.push(`is_enabled = $${paramCount}`);
+      values.push(config.isEnabled);
+      paramCount++;
+    }
+    
+    if (config.fromEmail !== undefined) {
+      updates.push(`from_email = $${paramCount}`);
+      values.push(config.fromEmail);
+      paramCount++;
+    }
+
+    if (config.lastDailyDigestAt !== undefined) {
+      updates.push(`last_daily_digest_at = $${paramCount}`);
+      values.push(config.lastDailyDigestAt);
+      paramCount++;
+    }
+
+    if (config.lastWeeklyDigestAt !== undefined) {
+      updates.push(`last_weekly_digest_at = $${paramCount}`);
+      values.push(config.lastWeeklyDigestAt);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return this.getAlertConfig();
+    }
+
+    updates.push(`updated_at = NOW()`);
+    
+    const query = `
+      UPDATE alert_config 
+      SET ${updates.join(', ')}
+      WHERE id = 1
+      RETURNING *
+    `;
+
+    const result = await sql.unsafe(query, values);
+    return result[0] as AlertConfig;
+  }
+
+  async createAlertNotification(notification: InsertAlertNotification): Promise<AlertNotification> {
+    const result = await sql`
+      INSERT INTO alert_notifications (
+        product_id, type, recipients, subject, body, status, error
+      ) VALUES (
+        ${notification.productId || null},
+        ${notification.type},
+        ${notification.recipients || []},
+        ${notification.subject},
+        ${notification.body},
+        ${notification.status || 'pending'},
+        ${notification.error || null}
+      )
+      RETURNING *
+    `;
+    return result[0] as AlertNotification;
+  }
+
+  async getAlertNotifications(limit: number = 50): Promise<AlertNotification[]> {
+    const result = await sql`
+      SELECT * FROM alert_notifications 
+      ORDER BY sent_at DESC 
+      LIMIT ${limit}
+    `;
+    return result as AlertNotification[];
+  }
+
+  async getLowStockProducts(threshold?: number): Promise<Product[]> {
+    const defaultThreshold = threshold || 10;
+    
+    const result = await sql`
+      SELECT * FROM products 
+      WHERE 
+        (stock_cantidad < COALESCE(low_stock_threshold, ${defaultThreshold}))
+        OR (stock = 'Sin Stock' OR stock = 'Consultar')
+      ORDER BY stock_cantidad ASC, sku ASC
+    `;
+    
+    return result.map(p => this.mapProductFields(p));
+  }
+
+  async updateProductNotificationTime(productId: string): Promise<void> {
+    await sql`
+      UPDATE products 
+      SET low_stock_notified_at = NOW() 
+      WHERE id = ${productId}
+    `;
   }
 }
 
