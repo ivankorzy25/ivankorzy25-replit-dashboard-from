@@ -41,6 +41,38 @@ interface IStorage {
 }
 
 export class PostgreSQLStorage implements IStorage {
+  // Helper method to map snake_case database fields to camelCase for frontend
+  private mapProductFields(dbProduct: any): Product {
+    return {
+      id: dbProduct.id,
+      sku: dbProduct.sku,
+      modelo: dbProduct.modelo,
+      marca: dbProduct.marca,
+      familia: dbProduct.familia,
+      descripcion: dbProduct.descripcion,
+      caracteristicas: dbProduct.caracteristicas,
+      precioUsdSinIva: dbProduct.precio_usd_sin_iva,
+      precioUsdConIva: dbProduct.precio_usd_con_iva,
+      precioCompra: dbProduct.precio_compra,
+      ivaPercent: dbProduct.iva_percent,
+      stock: dbProduct.stock,
+      combustible: dbProduct.combustible,
+      potencia: dbProduct.potencia,
+      motor: dbProduct.motor,
+      cabina: dbProduct.cabina,
+      ttaIncluido: dbProduct.tta_incluido,
+      urlPdf: dbProduct.url_pdf,
+      instagramFeedUrl1: dbProduct.instagram_feed_url_1,
+      instagramFeedUrl2: dbProduct.instagram_feed_url_2,
+      instagramFeedUrl3: dbProduct.instagram_feed_url_3,
+      instagramStoryUrl1: dbProduct.instagram_story_url_1,
+      mercadoLibreUrl1: dbProduct.mercado_libre_url_1,
+      webGenericaUrl1: dbProduct.web_generica_url_1,
+      urlFichaHtml: dbProduct.url_ficha_html,
+      createdAt: dbProduct.created_at,
+      updatedAt: dbProduct.updated_at,
+    };
+  }
   async getUser(id: string): Promise<User | undefined> {
     const result = await sql`SELECT * FROM users WHERE id = ${id}`;
     return result[0] as User | undefined;
@@ -91,19 +123,19 @@ export class PostgreSQLStorage implements IStorage {
     const total = parseInt(countResult[0].total);
     
     return {
-      products: products as Product[],
+      products: products.map(p => this.mapProductFields(p)),
       total
     };
   }
 
   async getProduct(id: string): Promise<Product | undefined> {
     const result = await sql`SELECT * FROM products WHERE id = ${id}`;
-    return result[0] as Product | undefined;
+    return result[0] ? this.mapProductFields(result[0]) : undefined;
   }
 
   async getProductBySku(sku: string): Promise<Product | undefined> {
     const result = await sql`SELECT * FROM products WHERE sku = ${sku}`;
-    return result[0] as Product | undefined;
+    return result[0] ? this.mapProductFields(result[0]) : undefined;
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
@@ -127,7 +159,7 @@ export class PostgreSQLStorage implements IStorage {
         ${product.webGenericaUrl1 || null}, ${product.urlFichaHtml || null}
       ) RETURNING *
     `;
-    return result[0] as Product;
+    return this.mapProductFields(result[0]);
   }
 
   async updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined> {
@@ -253,22 +285,24 @@ export class PostgreSQLStorage implements IStorage {
     let result;
     if (familia) {
       if (field === 'precioUsdSinIva') {
-        result = await sql`UPDATE products SET precio_usd_sin_iva = precio_usd_sin_iva * (1 + ${percentage} / 100) WHERE familia = ${familia}`;
+        result = await sql`UPDATE products SET precio_usd_sin_iva = precio_usd_sin_iva * (1 + ${percentage}::decimal / 100) WHERE familia = ${familia} RETURNING id`;
       } else if (field === 'precioCompra') {
-        result = await sql`UPDATE products SET precio_compra = precio_compra * (1 + ${percentage} / 100) WHERE familia = ${familia}`;
+        result = await sql`UPDATE products SET precio_compra = precio_compra * (1 + ${percentage}::decimal / 100) WHERE familia = ${familia} RETURNING id`;
       } else {
         throw new Error(`Invalid field: ${field}`);
       }
     } else {
       if (field === 'precioUsdSinIva') {
-        result = await sql`UPDATE products SET precio_usd_sin_iva = precio_usd_sin_iva * (1 + ${percentage} / 100)`;
+        result = await sql`UPDATE products SET precio_usd_sin_iva = precio_usd_sin_iva * (1 + ${percentage}::decimal / 100) RETURNING id`;
       } else if (field === 'precioCompra') {
-        result = await sql`UPDATE products SET precio_compra = precio_compra * (1 + ${percentage} / 100)`;
+        result = await sql`UPDATE products SET precio_compra = precio_compra * (1 + ${percentage}::decimal / 100) RETURNING id`;
       } else {
         throw new Error(`Invalid field: ${field}`);
       }
     }
-    return result.rowCount || 0;
+    
+    const affectedRows = Array.isArray(result) ? result.length : 0;
+    return affectedRows;
   }
 
   async createFileUpload(upload: InsertFileUpload): Promise<FileUpload> {
