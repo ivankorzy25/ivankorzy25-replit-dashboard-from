@@ -5,7 +5,11 @@ interface IStorage {
   // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
+  updateUserRole(id: string, role: string): Promise<User | undefined>;
+  deleteUser(id: string): Promise<boolean>;
+  updateUserStatus(id: string, isActive: boolean): Promise<User | undefined>;
   
   // Products
   getProducts(filters: {
@@ -63,6 +67,19 @@ interface IStorage {
 }
 
 export class PostgreSQLStorage implements IStorage {
+  // Helper method to map snake_case database fields to camelCase for User
+  private mapUserFields(dbUser: any): User {
+    return {
+      id: dbUser.id,
+      username: dbUser.username,
+      password: dbUser.password,
+      email: dbUser.email,
+      role: dbUser.role,
+      isActive: dbUser.is_active,
+      createdAt: dbUser.created_at
+    } as User;
+  }
+  
   // Helper method to map snake_case database fields to camelCase for frontend
   private mapProductFields(dbProduct: any): Product {
     return {
@@ -97,21 +114,51 @@ export class PostgreSQLStorage implements IStorage {
   }
   async getUser(id: string): Promise<User | undefined> {
     const result = await sql`SELECT * FROM users WHERE id = ${id}`;
-    return result[0] as User | undefined;
+    return result[0] ? this.mapUserFields(result[0]) : undefined;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const result = await sql`SELECT * FROM users WHERE username = ${username}`;
-    return result[0] as User | undefined;
+    return result[0] ? this.mapUserFields(result[0]) : undefined;
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const result = await sql`
-      INSERT INTO users (username, password, email) 
-      VALUES (${user.username}, ${user.password}, ${user.email || null}) 
+      INSERT INTO users (username, password, email, role) 
+      VALUES (${user.username}, ${user.password}, ${user.email || null}, ${(user as any).role || 'viewer'}) 
       RETURNING *
     `;
-    return result[0] as User;
+    return this.mapUserFields(result[0]);
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const result = await sql`SELECT * FROM users ORDER BY created_at DESC`;
+    return result.map(user => this.mapUserFields(user));
+  }
+
+  async updateUserRole(id: string, role: string): Promise<User | undefined> {
+    const result = await sql`
+      UPDATE users 
+      SET role = ${role} 
+      WHERE id = ${id} 
+      RETURNING *
+    `;
+    return result[0] ? this.mapUserFields(result[0]) : undefined;
+  }
+
+  async deleteUser(id: string): Promise<boolean> {
+    const result = await sql`DELETE FROM users WHERE id = ${id}`;
+    return result.count > 0;
+  }
+
+  async updateUserStatus(id: string, isActive: boolean): Promise<User | undefined> {
+    const result = await sql`
+      UPDATE users 
+      SET is_active = ${isActive} 
+      WHERE id = ${id} 
+      RETURNING *
+    `;
+    return result[0] ? this.mapUserFields(result[0]) : undefined;
   }
 
   async getProducts(filters: {

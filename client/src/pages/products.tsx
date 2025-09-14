@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { productsApi, statsApi } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuthStore, isEditor } from "@/lib/auth";
 import { Product } from "@shared/schema";
 import { Plus, Search } from "lucide-react";
 
@@ -26,6 +27,8 @@ export default function Products() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const user = useAuthStore((state) => state.user);
+  const canEdit = isEditor(); // Admin o Editor pueden editar
 
   // Fetch products with filters
   const { data: productsData, isLoading } = useQuery({
@@ -123,11 +126,27 @@ export default function Products() {
   };
 
   const handleEditProduct = (product: Product) => {
+    if (!canEdit) {
+      toast({
+        title: "Sin permisos",
+        description: "No tienes permisos para editar productos",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingProduct(product);
     setIsModalOpen(true);
   };
 
   const handleDeleteProduct = (product: Product) => {
+    if (!canEdit) {
+      toast({
+        title: "Sin permisos",
+        description: "No tienes permisos para eliminar productos",
+        variant: "destructive",
+      });
+      return;
+    }
     if (confirm(`¿Estás seguro de que quieres eliminar el producto ${product.sku}?`)) {
       deleteProductMutation.mutate(product.id);
     }
@@ -166,10 +185,12 @@ export default function Products() {
                     Administra el catálogo completo de productos KOR
                   </p>
                 </div>
-                <Button onClick={handleNewProduct} data-testid="button-new-product">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nuevo Producto
-                </Button>
+                {canEdit && (
+                  <Button onClick={handleNewProduct} data-testid="button-new-product">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nuevo Producto
+                  </Button>
+                )}
               </div>
 
               {/* Filters */}

@@ -1,5 +1,6 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useAuthStore, isAdmin } from "@/lib/auth";
 import { 
   Home, 
   Package, 
@@ -7,15 +8,19 @@ import {
   DollarSign, 
   Settings,
   Box,
-  BarChart3
+  BarChart3,
+  Users
 } from "lucide-react";
 
-const navigation = [
-  { name: "Dashboard", href: "/dashboard", icon: Home },
-  { name: "Productos", href: "/products", icon: Package },
-  { name: "Multimedia", href: "/multimedia", icon: Images },
-  { name: "Reportes", href: "/reports", icon: BarChart3 },
-  { name: "Configuración", href: "/settings", icon: Settings },
+const baseNavigation = [
+  { name: "Dashboard", href: "/dashboard", icon: Home, requiresAdmin: false },
+  { name: "Productos", href: "/products", icon: Package, requiresAdmin: false },
+  { name: "Multimedia", href: "/multimedia", icon: Images, requiresAdmin: false },
+  { name: "Reportes", href: "/reports", icon: BarChart3, requiresAdmin: false },
+];
+
+const adminNavigation = [
+  { name: "Usuarios", href: "/users", icon: Users, requiresAdmin: true },
 ];
 
 interface SidebarProps {
@@ -24,6 +29,13 @@ interface SidebarProps {
 
 export default function Sidebar({ className }: SidebarProps) {
   const [location] = useLocation();
+  const user = useAuthStore((state) => state.user);
+  
+  // Combinar navegación base con navegación de admin si el usuario es admin
+  const navigation = [
+    ...baseNavigation,
+    ...(isAdmin() ? adminNavigation : []),
+  ];
 
   return (
     <div className={cn("flex flex-col w-64 bg-sidebar border-r border-sidebar-border", className)}>
@@ -60,6 +72,21 @@ export default function Sidebar({ className }: SidebarProps) {
             );
           })}
         </nav>
+        
+        {/* Indicador del rol del usuario actual */}
+        {user && (
+          <div className="px-4 pb-4 border-t border-sidebar-border pt-4">
+            <div className="text-xs text-sidebar-foreground/60">
+              <div className="font-medium">{user.username}</div>
+              <div className="mt-1">
+                Rol: <span className="font-medium capitalize">
+                  {user.role === 'admin' ? 'Administrador' : 
+                   user.role === 'editor' ? 'Editor' : 'Visor'}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,12 +3,22 @@ import { pgTable, text, varchar, decimal, timestamp, boolean, integer } from "dr
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Define user roles enum
+export const UserRole = {
+  ADMIN: 'admin',
+  EDITOR: 'editor',
+  VIEWER: 'viewer',
+} as const;
+
+export type UserRoleType = typeof UserRole[keyof typeof UserRole];
+
 // Users table for admin authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   email: text("email"),
+  role: text("role").default(UserRole.VIEWER).notNull(), // 'admin', 'editor', 'viewer'
   isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -96,6 +106,17 @@ export const bulkPriceUpdateSchema = z.object({
   familia: z.string().optional(),
 });
 
+export const updateUserRoleSchema = z.object({
+  role: z.enum(['admin', 'editor', 'viewer']),
+});
+
+export const createUserSchema = z.object({
+  username: z.string().min(3, "El nombre de usuario debe tener al menos 3 caracteres"),
+  password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+  email: z.string().email("Email inválido").optional(),
+  role: z.enum(['admin', 'editor', 'viewer']).default('viewer'),
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -105,3 +126,5 @@ export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
 export type FileUpload = typeof fileUploads.$inferSelect;
 export type LoginRequest = z.infer<typeof loginSchema>;
 export type BulkPriceUpdate = z.infer<typeof bulkPriceUpdateSchema>;
+export type UpdateUserRole = z.infer<typeof updateUserRoleSchema>;
+export type CreateUser = z.infer<typeof createUserSchema>;

@@ -27,9 +27,21 @@ export async function initializeDatabase() {
         username TEXT NOT NULL UNIQUE,
         password TEXT NOT NULL,
         email TEXT,
+        role TEXT DEFAULT 'viewer' NOT NULL,
         is_active BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `;
+
+    // Add role column if it doesn't exist (for existing databases)
+    await sql`
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                      WHERE table_name='users' AND column_name='role') THEN
+          ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'viewer' NOT NULL;
+        END IF;
+      END $$;
     `;
 
     // Create products table
@@ -98,9 +110,11 @@ export async function initializeDatabase() {
     if (userCount === 0) {
       const bcrypt = await import('bcrypt');
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
-      await sql`INSERT INTO users (username, password, email) VALUES (${adminUsername}, ${hashedPassword}, ${adminEmail})`;
-      console.log(`✅ Default admin user created (username: ${adminUsername})`);
+      await sql`INSERT INTO users (username, password, email, role) VALUES (${adminUsername}, ${hashedPassword}, ${adminEmail}, 'admin')`;
+      console.log(`✅ Default admin user created with admin role (username: ${adminUsername})`);
     } else {
+      // Update existing admin user to have admin role if they don't have it
+      await sql`UPDATE users SET role = 'admin' WHERE username = ${adminUsername} AND role != 'admin'`;
       console.log('ℹ️ Default admin user already exists');
     }
 

@@ -5,6 +5,7 @@ interface User {
   id: string;
   username: string;
   email?: string;
+  role?: string;
 }
 
 interface AuthStore {
@@ -35,4 +36,24 @@ export const useAuthStore = create<AuthStore>()(
 export function getAuthHeaders(): Record<string, string> {
   const token = useAuthStore.getState().token;
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function hasPermission(role: string | undefined, requiredRoles: string[]): boolean {
+  if (!role) return false;
+  return requiredRoles.includes(role);
+}
+
+export function isAdmin(): boolean {
+  const user = useAuthStore.getState().user;
+  return user?.role === 'admin';
+}
+
+export function isEditor(): boolean {
+  const user = useAuthStore.getState().user;
+  return user?.role === 'admin' || user?.role === 'editor';
+}
+
+export function isViewer(): boolean {
+  const user = useAuthStore.getState().user;
+  return user?.role === 'admin' || user?.role === 'editor' || user?.role === 'viewer';
 }

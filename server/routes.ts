@@ -1,10 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { authenticateToken, generateToken } from "./middleware/auth";
+import { authenticateToken, generateToken, requireAdmin, requireEditor } from "./middleware/auth";
 import { initializeDatabase, testConnection } from "./config/database";
 import { uploadFile } from "./config/storage";
-import { loginSchema, insertProductSchema, bulkPriceUpdateSchema } from "@shared/schema";
+import { loginSchema, insertProductSchema, bulkPriceUpdateSchema, updateUserRoleSchema, createUserSchema } from "@shared/schema";
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -53,13 +53,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
       
-      const token = generateToken({ id: user.id, username: user.username });
+      // Verificar si el usuario está activo
+      if (!user.isActive) {
+        return res.status(403).json({ error: 'Usuario desactivado' });
+      }
+      
+      const token = generateToken({ id: user.id, username: user.username, role: user.role });
       
       res.json({
         user: {
           id: user.id,
           username: user.username,
           email: user.email,
+          role: user.role,
         },
         token,
       });
@@ -83,7 +89,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: user.id,
         username: user.username,
         email: user.email,
+        role: user.role,
       });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // User management routes (admin only)
+  app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Remove passwords from response
+      const sanitizedUsers = users.map(({ password, ...user }) => user);
+      res.json(sanitizedUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put('/api/users/:id/role', authenticateToken, requireAdmin, async (req: any, res) => {
+    try {
+      const { role } = updateUserRoleSchema.parse(req.body);
+      
+      // Prevent users from changing their own role
+      if (req.user.id === req.params.id) {
+        return res.status(403).json({ error: 'No puedes cambiar tu propio rol' });
+      }
+      
+      const updatedUser = await storage.updateUserRole(req.params.id, role);
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      
+      const { password, ...sanitizedUser } = updatedUser;
+      res.json(sanitizedUser);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.post('/api/users', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+      const userData = createUserSchema.parse(req.body);
+      
+      // Check if username already exists
+      const existingUser = await storage.getUserByUsername(userData.username);
+      if (existingUser) {
+        return res.status(400).json({ error: 'El nombre de usuario ya existe' });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      
+      const newUser = await storage.createUser({
+        username: userData.username,
+        password: hashedPassword,
+        email: userData.email,
+        ...(userData.role && { role: userData.role }),
+      } as any);
+      
+      const { password, ...sanitizedUser } = newUser;
+      res.status(201).json(sanitizedUser);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req: any, res) => {
+    try {
+      // Prevent users from deleting themselves
+      if (req.user.id === req.params.id) {
+        return res.status(403).json({ error: 'No puedes eliminar tu propia cuenta' });
+      }
+      
+      const success = await storage.deleteUser(req.params.id);
+      if (!success) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      
+      res.json({ message: 'Usuario eliminado exitosamente' });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put('/api/users/:id/status', authenticateToken, requireAdmin, async (req: any, res) => {
+    try {
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== 'boolean') {
+        return res.status(400).json({ error: 'El campo isActive debe ser booleano' });
+      }
+      
+      // Prevent users from deactivating themselves
+      if (req.user.id === req.params.id && !isActive) {
+        return res.status(403).json({ error: 'No puedes desactivar tu propia cuenta' });
+      }
+      
+      const updatedUser = await storage.updateUserStatus(req.params.id, isActive);
+      if (!updatedUser) {
+        return res.status(404).json({ error: 'Usuario no encontrado' });
+      }
+      
+      const { password, ...sanitizedUser } = updatedUser;
+      res.json(sanitizedUser);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -125,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/products', authenticateToken, async (req, res) => {
+  app.post('/api/products', authenticateToken, requireEditor, async (req, res) => {
     try {
       const productData = insertProductSchema.parse(req.body);
       const product = await storage.createProduct(productData);
@@ -135,7 +245,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/products/:id', authenticateToken, async (req, res) => {
+  app.put('/api/products/:id', authenticateToken, requireEditor, async (req, res) => {
     try {
       const productData = insertProductSchema.partial().parse(req.body);
       const product = await storage.updateProduct(req.params.id, productData);
@@ -148,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete('/api/products/:id', authenticateToken, async (req, res) => {
+  app.delete('/api/products/:id', authenticateToken, requireEditor, async (req, res) => {
     try {
       const success = await storage.deleteProduct(req.params.id);
       if (!success) {
@@ -161,7 +271,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk price update
-  app.post('/api/products/bulk-price-update', authenticateToken, async (req, res) => {
+  app.post('/api/products/bulk-price-update', authenticateToken, requireEditor, async (req, res) => {
     try {
       const { percentage, field, familia } = bulkPriceUpdateSchema.parse(req.body);
       const affectedRows = await storage.updatePricesBulk(percentage, field, familia);

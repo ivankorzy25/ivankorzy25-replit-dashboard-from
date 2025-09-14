@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Product } from "@shared/schema";
+import { isEditor } from "@/lib/auth";
 import { Edit, Images, Trash2, FileText, Video, Image as ImageIcon } from "lucide-react";
 
 interface ProductTableProps {
@@ -34,6 +35,7 @@ export default function ProductTable({
   onDelete,
   onManageMultimedia,
 }: ProductTableProps) {
+  const canEdit = isEditor(); // Solo Admin y Editor pueden editar
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -73,16 +75,13 @@ export default function ProductTable({
     return (
       <div className="flex space-x-2">
         <ImageIcon 
-          className={`h-4 w-4 ${hasImage ? 'text-green-500' : 'text-gray-300'}`} 
-          title={hasImage ? "Imagen disponible" : "Imagen no disponible"}
+          className={`h-4 w-4 ${hasImage ? 'text-green-500' : 'text-gray-300'}`}
         />
         <FileText 
-          className={`h-4 w-4 ${hasPdf ? 'text-red-500' : 'text-gray-300'}`} 
-          title={hasPdf ? "PDF disponible" : "PDF no disponible"}
+          className={`h-4 w-4 ${hasPdf ? 'text-red-500' : 'text-gray-300'}`}
         />
         <Video 
-          className={`h-4 w-4 ${hasVideo ? 'text-blue-500' : 'text-gray-300'}`} 
-          title={hasVideo ? "Video disponible" : "Video no disponible"}
+          className={`h-4 w-4 ${hasVideo ? 'text-blue-500' : 'text-gray-300'}`}
         />
       </div>
     );
@@ -137,30 +136,40 @@ export default function ProductTable({
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit?.(product)}
-                        data-testid={`button-edit-${product.sku}`}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onManageMultimedia?.(product)}
-                        data-testid={`button-multimedia-${product.sku}`}
-                      >
-                        <Images className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onDelete?.(product)}
-                        data-testid={`button-delete-${product.sku}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canEdit && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onEdit?.(product)}
+                            data-testid={`button-edit-${product.sku}`}
+                            title="Editar producto"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onManageMultimedia?.(product)}
+                            data-testid={`button-multimedia-${product.sku}`}
+                            title="Gestionar multimedia"
+                          >
+                            <Images className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => onDelete?.(product)}
+                            data-testid={`button-delete-${product.sku}`}
+                            title="Eliminar producto"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                      {!canEdit && (
+                        <span className="text-sm text-muted-foreground">Solo lectura</span>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
