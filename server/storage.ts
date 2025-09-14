@@ -20,6 +20,7 @@ interface IStorage {
   getProductBySku(sku: string): Promise<Product | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(id: string, product: Partial<InsertProduct>): Promise<Product | undefined>;
+  updateProductUrlField(id: string, fieldKey: string, url: string): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
   
   // Bulk operations
@@ -271,7 +272,7 @@ export class PostgreSQLStorage implements IStorage {
     values.push(id);
 
     const query = `UPDATE products SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
-    await sql(query, ...values);
+    await sql.unsafe(query, values);
     
     return this.getProduct(id);
   }
@@ -279,6 +280,40 @@ export class PostgreSQLStorage implements IStorage {
   async deleteProduct(id: string): Promise<boolean> {
     const result = await sql`DELETE FROM products WHERE id = ${id}`;
     return result.rowCount > 0;
+  }
+
+  async updateProductUrlField(id: string, fieldKey: string, url: string): Promise<Product | undefined> {
+    // Use static tagged-template queries for URL fields to avoid sql.unsafe issues
+    switch (fieldKey) {
+      case 'urlPdf':
+        await sql`UPDATE products SET url_pdf = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'instagramFeedUrl1':
+        await sql`UPDATE products SET instagram_feed_url_1 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'instagramFeedUrl2':
+        await sql`UPDATE products SET instagram_feed_url_2 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'instagramFeedUrl3':
+        await sql`UPDATE products SET instagram_feed_url_3 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'instagramStoryUrl1':
+        await sql`UPDATE products SET instagram_story_url_1 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'mercadoLibreUrl1':
+        await sql`UPDATE products SET mercado_libre_url_1 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'webGenericaUrl1':
+        await sql`UPDATE products SET web_generica_url_1 = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      case 'urlFichaHtml':
+        await sql`UPDATE products SET url_ficha_html = ${url}, updated_at = CURRENT_TIMESTAMP WHERE id = ${id}`;
+        break;
+      default:
+        throw new Error(`Invalid URL field: ${fieldKey}`);
+    }
+    
+    return this.getProduct(id);
   }
 
   async updatePricesBulk(percentage: number, field: string, familia?: string): Promise<number> {

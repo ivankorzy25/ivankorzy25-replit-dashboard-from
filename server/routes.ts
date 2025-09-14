@@ -8,6 +8,8 @@ import { loginSchema, insertProductSchema, bulkPriceUpdateSchema } from "@shared
 import bcrypt from 'bcrypt';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
+import express from 'express';
+import { join } from 'path';
 
 // Configure multer for file uploads
 const upload = multer({
@@ -29,6 +31,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize database
   await testConnection();
   await initializeDatabase();
+
+  // Serve uploaded files statically in development mode
+  if (process.env.NODE_ENV === 'development' || !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const uploadsPath = join(process.cwd(), 'uploads');
+    app.use('/uploads', express.static(uploadsPath));
+  }
 
   // Authentication routes
   app.post('/api/auth/login', async (req, res) => {
@@ -194,7 +202,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update product with URL if applicable
       if (productId && uploadType) {
-        const updateData: any = {};
         const urlMapping: Record<string, string> = {
           'pdf': 'urlPdf',
           'imagen_feed_1': 'instagramFeedUrl1',
@@ -207,8 +214,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
 
         if (urlMapping[uploadType]) {
-          updateData[urlMapping[uploadType]] = gcsUrl;
-          await storage.updateProduct(productId, updateData);
+          await storage.updateProductUrlField(productId, urlMapping[uploadType], gcsUrl);
         }
       }
 
