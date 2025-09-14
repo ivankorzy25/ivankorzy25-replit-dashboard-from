@@ -6,13 +6,15 @@ import {
   Images, 
   DollarSign, 
   Settings,
-  Box
+  Box,
+  BarChart3
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Productos", href: "/products", icon: Package },
   { name: "Multimedia", href: "/multimedia", icon: Images },
+  { name: "Reportes", href: "/reports", icon: BarChart3 },
   { name: "Configuración", href: "/settings", icon: Settings },
 ];
 

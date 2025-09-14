@@ -249,6 +249,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reports endpoints
+  app.get('/api/reports/inventory-summary', authenticateToken, async (req, res) => {
+    try {
+      const summary = await storage.getInventorySummary();
+      res.json(summary);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/reports/price-trends', authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days as string) || 30;
+      const trends = await storage.getPriceTrends(days);
+      res.json(trends);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get('/api/reports/family-distribution', authenticateToken, async (req, res) => {
+    try {
+      const distribution = await storage.getFamilyDistribution();
+      res.json(distribution);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

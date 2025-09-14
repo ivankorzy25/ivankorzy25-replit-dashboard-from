@@ -1,10 +1,11 @@
-# Overview
+# Resumen General
 
-This is a KOR Dashboard web application built as a product management system for an industrial equipment company. The application provides a complete CRUD interface for managing product catalogs, multimedia assets, and pricing information with Google Cloud Storage integration for file handling.
+KOR Dashboard es una aplicación web desarrollada como sistema de gestión de productos para una empresa de equipamiento industrial. La aplicación proporciona una interfaz CRUD completa para administrar catálogos de productos, recursos multimedia, información de precios, y ahora incluye un sistema avanzado de reportes y análisis con visualizaciones interactivas.
 
-# User Preferences
+# Preferencias del Usuario
 
-Preferred communication style: Simple, everyday language.
+Estilo de comunicación preferido: Lenguaje simple y cotidiano.
+Idioma preferido: Español.
 
 # System Architecture
 
@@ -48,12 +49,23 @@ Preferred communication style: Simple, everyday language.
 - **Bulk pricing operations** with percentage-based updates across product families
 - **Advanced search and filtering** capabilities across multiple product attributes
 - **Pagination support** for large product catalogs
+- **Complete multimedia management** with modal interface for uploading, viewing, and deleting product files
+
+## Reporting and Analytics System
+- **Interactive charts with Recharts** for data visualization
+- **Inventory summary** with total value calculations
+- **Price trend analysis** with customizable date ranges
+- **Family distribution charts** showing stock status by product family
+- **CSV export functionality** for all report data
+- **Interactive date range picker** with Spanish localization
+- **Real-time filtering** by product families
 
 ## API Structure
 - `/api/auth/*` - Authentication endpoints (login, logout, user verification)
 - `/api/products/*` - Product CRUD operations with filtering and pagination
 - `/api/stats/*` - Dashboard statistics and analytics endpoints
 - `/api/upload/*` - File upload and multimedia management endpoints
+- `/api/reports/*` - Advanced reporting and analytics endpoints (inventory summary, price trends, family distribution)
 
 # External Dependencies
 
@@ -69,6 +81,7 @@ Preferred communication style: Simple, everyday language.
 - **shadcn/ui** - Pre-built component library based on Radix UI primitives
 - **Radix UI** - Unstyled, accessible UI component primitives
 - **Tailwind CSS** - Utility-first CSS framework for styling
+- **Recharts** - Composable charting library for React with animations
 
 ## Development Tools
 - **Vite** - Frontend build tool and development server
@@ -78,6 +91,8 @@ Preferred communication style: Simple, everyday language.
 ## Authentication & Security
 - **jsonwebtoken** - JWT token generation and verification
 - **bcrypt** - Password hashing and comparison utilities
+- **Environment-based credentials** - Secure admin credentials via environment variables (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_EMAIL)
+- **No hardcoded secrets** - All sensitive data managed through environment variables
 
 ## File Processing
 - **Multer** - Express middleware for handling multipart/form-data uploads

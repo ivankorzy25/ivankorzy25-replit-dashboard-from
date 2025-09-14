@@ -8,6 +8,7 @@ import Login from "@/pages/login";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products";
 import Multimedia from "@/pages/multimedia";
+import Reports from "@/pages/reports";
 import NotFound from "@/pages/not-found";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -30,6 +31,7 @@ function Router() {
       <Route path="/dashboard" component={() => <ProtectedRoute component={Dashboard} />} />
       <Route path="/products" component={() => <ProtectedRoute component={Products} />} />
       <Route path="/multimedia" component={() => <ProtectedRoute component={Multimedia} />} />
+      <Route path="/reports" component={() => <ProtectedRoute component={Reports} />} />
       <Route component={NotFound} />
     </Switch>
   );
