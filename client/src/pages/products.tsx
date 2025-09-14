@@ -4,6 +4,7 @@ import Sidebar from "@/components/layout/sidebar";
 import Topbar from "@/components/layout/topbar";
 import ProductTable from "@/components/products/product-table";
 import ProductModal from "@/components/products/product-modal";
+import MultimediaModal from "@/components/products/multimedia-modal";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,8 @@ export default function Products() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isMultimediaModalOpen, setIsMultimediaModalOpen] = useState(false);
+  const [selectedProductForMultimedia, setSelectedProductForMultimedia] = useState<Product | null>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -139,11 +142,8 @@ export default function Products() {
   };
 
   const handleManageMultimedia = (product: Product) => {
-    // TODO: Implement multimedia management
-    toast({
-      title: "Coming Soon",
-      description: "Multimedia management feature will be available soon",
-    });
+    setSelectedProductForMultimedia(product);
+    setIsMultimediaModalOpen(true);
   };
 
   return (
@@ -257,6 +257,16 @@ export default function Products() {
         product={editingProduct}
         onSave={handleSaveProduct}
         isLoading={createProductMutation.isPending || updateProductMutation.isPending}
+      />
+
+      {/* Multimedia Modal */}
+      <MultimediaModal
+        isOpen={isMultimediaModalOpen}
+        onClose={() => {
+          setIsMultimediaModalOpen(false);
+          setSelectedProductForMultimedia(null);
+        }}
+        product={selectedProductForMultimedia}
       />
     </div>
   );

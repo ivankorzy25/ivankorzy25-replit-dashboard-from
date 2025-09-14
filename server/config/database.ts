@@ -3,17 +3,8 @@ import { neon } from '@neondatabase/serverless';
 // Create SQL client with the DATABASE_URL
 const sql = neon(process.env.DATABASE_URL!);
 
-// Mock pool interface for compatibility with existing code
-class MockPool {
-  async connect() {
-    return {
-      query: sql,
-      release: () => {}
-    };
-  }
-}
-
-export const pool = new MockPool();
+// Export the Neon SQL client
+export { sql };
 
 export async function testConnection() {
   try {
@@ -90,15 +81,25 @@ export async function initializeDatabase() {
       )
     `;
 
-    // Create default admin user
-    const userResult = await sql`SELECT COUNT(*) as count FROM users WHERE username = 'admin'`;
+    // Create default admin user from environment variables (required)
+    const adminUsername = process.env.DEFAULT_ADMIN_USERNAME;
+    const adminPassword = process.env.DEFAULT_ADMIN_PASSWORD;
+    const adminEmail = process.env.DEFAULT_ADMIN_EMAIL;
+    
+    if (!adminUsername || !adminPassword || !adminEmail) {
+      console.log('⚠️ Skipping admin user creation - DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, and DEFAULT_ADMIN_EMAIL environment variables are required');
+      console.log('✅ PostgreSQL database tables initialized');
+      return;
+    }
+    
+    const userResult = await sql`SELECT COUNT(*) as count FROM users WHERE username = ${adminUsername}`;
     const userCount = parseInt(userResult[0].count);
     
     if (userCount === 0) {
       const bcrypt = await import('bcrypt');
-      const hashedPassword = await bcrypt.hash('admin123', 10);
-      await sql`INSERT INTO users (username, password, email) VALUES ('admin', ${hashedPassword}, 'admin@kor.com')`;
-      console.log('✅ Default admin user created (username: admin, password: admin123)');
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      await sql`INSERT INTO users (username, password, email) VALUES (${adminUsername}, ${hashedPassword}, ${adminEmail})`;
+      console.log(`✅ Default admin user created (username: ${adminUsername})`);
     } else {
       console.log('ℹ️ Default admin user already exists');
     }

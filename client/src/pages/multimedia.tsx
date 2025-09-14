@@ -190,7 +190,7 @@ export default function Multimedia() {
   const allFiles = productsData?.products?.flatMap(getProductMultimediaFiles) || [];
 
   // Filter files based on search and filters
-  const filteredFiles = allFiles.filter(file => {
+  const filteredFiles = allFiles.filter((file: MultimediaFile) => {
     if (searchQuery && !file.filename.toLowerCase().includes(searchQuery.toLowerCase()) && 
         !file.productSku?.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
@@ -334,7 +334,7 @@ export default function Multimedia() {
                               <SelectValue placeholder="Seleccionar producto..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {productsData?.products?.map((product) => (
+                              {productsData?.products?.map((product: Product) => (
                                 <SelectItem key={product.id} value={product.sku}>
                                   {product.sku} - {product.modelo || 'Sin modelo'}
                                 </SelectItem>
@@ -373,7 +373,7 @@ export default function Multimedia() {
                       </CardHeader>
                       <CardContent>
                         <FileUpload
-                          productId={productsData?.products?.find(p => p.sku === selectedProduct)?.id}
+                          productId={productsData?.products?.find((p: Product) => p.sku === selectedProduct)?.id}
                           uploadType={selectedUploadType}
                           onUploadComplete={handleFileUpload}
                           acceptedFileTypes={[
@@ -416,7 +416,7 @@ export default function Multimedia() {
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos los productos</SelectItem>
-                            {productsData?.products?.map((product) => (
+                            {productsData?.products?.map((product: Product) => (
                               <SelectItem key={product.id} value={product.sku}>
                                 {product.sku}
                               </SelectItem>
@@ -474,7 +474,7 @@ export default function Multimedia() {
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-                          {filteredFiles.map((file) => (
+                          {filteredFiles.map((file: MultimediaFile) => (
                             <FileCard key={file.id} file={file} />
                           ))}
                         </div>
